@@ -147,11 +147,11 @@ if __name__ == "__main__":
     dataloaders = {}
     for dataset_type in dataset_types:
         dataloaders[dataset_type] = DataLoader(datasets[dataset_type],
-                                            batch_size=128,
+                                            batch_size=64,
                                             shuffle=True if dataset_type == "train" else False,
-                                            num_workers=0,
+                                            num_workers=4,
                                             drop_last = True,
-                                            #persistent_workers=True,
+                                            persistent_workers=True,
                                             collate_fn=collate_fn
                                             )   
         print(f"Number of {dataset_type} batches: {len(dataloaders[dataset_type])}")
@@ -192,8 +192,8 @@ if __name__ == "__main__":
         # Create a new tqdm progress bar for each epoch
         with tqdm(dataloaders["train"], desc=f"Epoch {epoch+1}/{epochs}") as pbar:
             for x1, x0 in pbar:
-                x1 = x1.float()#.to(device)
-                x0 = x0.float()#.to(device)
+                x1 = x1.float().to(device)
+                x0 = x0.float().to(device)
 
                 optimizer.zero_grad()
                 update_momentum(model.backbone, model.backbone_momentum, m=cosine_schedule(epoch, epochs, 0.996, 1))

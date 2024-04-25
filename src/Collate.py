@@ -45,6 +45,11 @@ class CollateFn:
         mfr2_batch = torch.stack([item['mfr2'][:self.min_length_mfr] for item in batch])
         max_trace1_batch = torch.stack([item['max_trace1'] for item in batch])
         max_trace2_batch = torch.stack([item['max_trace2'] for item in batch])
+        mfr1_batch = mfr1_batch.to(self.device)
+        mfr2_batch = mfr2_batch.to(self.device)
+        max_trace1_batch = max_trace1_batch.to(self.device)
+        max_trace2_batch = max_trace2_batch.to(self.device)
+        
         
         mfr_height = self.image_size[0] // 2
         max_trace_height = self.image_size[0] // 2
@@ -83,17 +88,17 @@ class GAFTransform:
 class ApplyRandomColormapBatch:
     def __init__(self):
         self.colormaps = [
-                    ('black', 'white'),
-                    ('red', 'cyan'),
-                    ('blue', 'yellow'),
-                    ('green', 'magenta'),
-                    ('orange', 'purple'),
-                    ('brown', 'pink'),
-                    ('darkblue', 'lightgreen'),
-                    ('darkred', 'lightblue'),
-                    ('darkgreen', 'lightpink'),
-                    ('darkorange', 'lightpurple'),
-                ]
+            ('black', 'white'),
+            ('red', 'cyan'),
+            ('blue', 'yellow'),
+            ('green', 'magenta'),
+            ('orange', 'purple'),
+            ('brown', 'pink'),
+            ('darkblue', 'lightgreen'),
+            ('darkred', 'lightblue'),
+            ('darkgreen', 'lightpink'),
+            ('darkorange', 'plum'),  # replaced 'lightpurple' with 'plum'
+        ]
 
     def __call__(self, batch):
         # Select one random colormap for the entire batch
