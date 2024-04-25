@@ -3,18 +3,22 @@ import torch
 import random
 import matplotlib.pyplot as plt
 from time import time
+from PIL import ImageOps
+#import transforms from pytorch
+from torchvision import transforms
 
 class CollateFn:
-    def __init__(self, gaf_trace_transform = True, apply_randomcolormap= True, color_maps = ['viridis', 'plasma', 'inferno', 'magma'], image_size=(256, 256)):
+    def __init__(self, gaf_trace_transform = True, apply_randomcolormap= True, image_size=(256, 256)):
         self.image_size = image_size  # image_size should be (height, width)
         self.gaf_trace_transform = None
         if gaf_trace_transform:
             self.gaf_trace_transform = GAFTransform()
         self.apply_randomcolormap = None
         if apply_randomcolormap:
-            self.apply_randomcolormap = ApplyRandomColormapBatch(colormaps=color_maps)
+            self.apply_randomcolormap = ApplyRandomColormapBatch()
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.min_length = None
+        self.min_length_trace = None
+        self.min_length_mfr = None
 
     def __call__(self, batch):
         
@@ -25,10 +29,11 @@ class CollateFn:
             item = {k: v.to(self.device) for k, v in item.items()}
             
         if self.gaf_trace_transform:
-            if not self.min_length:
-                self.min_length = min([item['max_trace1'].shape[0] for item in batch]) 
-            max_trace1_batch = torch.stack([item['max_trace1'][:self.min_length] for item in batch])
-            max_trace2_batch = torch.stack([item['max_trace2'][:self.min_length] for item in batch])
+            if not self.min_length_trace:
+                self.min_length_trace = min([item['max_trace1'].shape[0] for item in batch]) 
+                self.min_length_mfr = min([item['mfr1'].shape[0] for item in batch])
+            max_trace1_batch = torch.stack([item['max_trace1'][:self.min_length_trace] for item in batch])
+            max_trace2_batch = torch.stack([item['max_trace2'][:self.min_length_trace] for item in batch])
 
             max_trace1_batch = self.gaf_trace_transform(max_trace1_batch)
             max_trace2_batch = self.gaf_trace_transform(max_trace2_batch)
@@ -36,42 +41,33 @@ class CollateFn:
                 item['max_trace1'] = max_trace1_batch[i]
                 item['max_trace2'] = max_trace2_batch[i]
 
-        for item in batch:
-            # Ensure both tensors are on the correct device before processing
-            mfr1, max_trace1 = item['mfr1'], item['max_trace1']
-            mfr2, max_trace2 = item['mfr2'], item['max_trace2']
-            print(f"mfr1 shape: {mfr1.shape}")
-            print(f"max_trace1 shape: {max_trace1.shape}")
-
-            # Calculate individual heights for mfr and max_trace
-            mfr_height = self.image_size[0] // 2
-            max_trace_height = self.image_size[0] // 2
-
-            # Interpolate mfr and max_trace separately to occupy half the image height each 
-            mfr1 = F.interpolate(mfr1.unsqueeze(0), size=(mfr_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
-            max_trace1 = F.interpolate(max_trace1.unsqueeze(0).unsqueeze(0), size=(max_trace_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
-            mfr2 = F.interpolate(mfr2.unsqueeze(0), size=(mfr_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
-            max_trace2 = F.interpolate(max_trace2.unsqueeze(0).unsqueeze(0), size=(max_trace_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
-            
-            # Ensure the dimensions are consistent
-            if mfr1.size(1) != max_trace1.size(1) or mfr1.size(2) != max_trace1.size(2):
-                raise RuntimeError(f"Dimension mismatch: MFR dimensions {mfr1.size()} do not match Max Trace dimensions {max_trace1.size()} after interpolation.")
-
-            # Concatenate mfr and max_trace along the height dimension
-            img1 = torch.cat([mfr1, max_trace1], dim=1)  # Change to dim=1 to concatenate along the channel dimension
-            img2 = torch.cat([mfr2, max_trace2], dim=1)
-
-            processed_data["img1"].append(img1)
-            processed_data["img2"].append(img2)
-
-        processed_data['img1'] = torch.stack(processed_data['img1'])
-        processed_data['img2'] = torch.stack(processed_data['img2'])
+        mfr1_batch = torch.stack([item['mfr1'][:self.min_length_mfr] for item in batch])
+        mfr2_batch = torch.stack([item['mfr2'][:self.min_length_mfr] for item in batch])
+        max_trace1_batch = torch.stack([item['max_trace1'] for item in batch])
+        max_trace2_batch = torch.stack([item['max_trace2'] for item in batch])
         
+        mfr_height = self.image_size[0] // 2
+        max_trace_height = self.image_size[0] // 2
+        
+        mfr1_batch = F.interpolate(mfr1_batch.unsqueeze(1), size=(mfr_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
+        max_trace1_batch = F.interpolate(max_trace1_batch.unsqueeze(1), size=(max_trace_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
+        mfr2_batch = F.interpolate(mfr2_batch.unsqueeze(1), size=(mfr_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
+        max_trace2_batch = F.interpolate(max_trace2_batch.unsqueeze(1), size=(max_trace_height, self.image_size[1]), mode='bilinear', align_corners=False).squeeze(0)
+        color_start = time()
         if self.apply_randomcolormap:
-            processed_data['img1'] = self.apply_randomcolormap(processed_data['img1'])
-            processed_data['img2'] = self.apply_randomcolormap(processed_data['img2'])
+            mfr1_batch = self.apply_randomcolormap(mfr1_batch)
+            mfr2_batch = self.apply_randomcolormap(mfr2_batch)
+            max_trace1_batch = self.apply_randomcolormap(max_trace1_batch)
+            max_trace2_batch = self.apply_randomcolormap(max_trace2_batch)
+        print(f"Time taken for color transform: {time() - color_start}")
+        
+        img1_batch = torch.cat([mfr1_batch, max_trace1_batch], dim=2)
+        img2_batch = torch.cat([mfr2_batch, max_trace2_batch], dim=2)
+        
         print(f"Time taken for collate function: {time() - start}")
-        return processed_data
+        
+        return img1_batch, img2_batch
+    
 
 class GAFTransform:
     def __call__(self, batch):
@@ -85,16 +81,40 @@ class GAFTransform:
         return gaf
     
 class ApplyRandomColormapBatch:
-    def __init__(self, colormaps):
-        self.colormaps = colormaps
+    def __init__(self):
+        self.colormaps = [
+                    ('black', 'white'),
+                    ('red', 'cyan'),
+                    ('blue', 'yellow'),
+                    ('green', 'magenta'),
+                    ('orange', 'purple'),
+                    ('brown', 'pink'),
+                    ('darkblue', 'lightgreen'),
+                    ('darkred', 'lightblue'),
+                    ('darkgreen', 'lightpink'),
+                    ('darkorange', 'lightpurple'),
+                ]
 
     def __call__(self, batch):
         # Select one random colormap for the entire batch
         colormap = random.choice(self.colormaps)
-        cmap = plt.cm.get_cmap(colormap)
+        
         # Apply the colormap to each sample in the batch
-        batch = cmap(batch.numpy())[:, :, :, :3]  # Apply colormap and ignore the alpha channel
-        return torch.from_numpy(batch).permute(0, 3, 1, 2)  # Rearrange dimensions to [batch_size, channels, height, width]
-
+        batch_list = []
+        for img in batch:
+            # Convert tensor to PIL Image
+            img = transforms.ToPILImage()(img)
+            
+            # Apply colormap
+            img = ImageOps.colorize(img, colormap[0], colormap[1])
+            
+            # Convert PIL Image back to tensor
+            img = transforms.ToTensor()(img)
+            
+            batch_list.append(img)
+        
+        batch = torch.stack(batch_list)
+        
+        return batch
 
 # DataLoader usage remains the same

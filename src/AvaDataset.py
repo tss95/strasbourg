@@ -34,7 +34,7 @@ class AvaPretrainDataset(Dataset):
     
     def __getitem__(self, idx):
         path = self.paths[idx]
-        start = time()
+        #start = time()
         f = h5py.File(os.path.join(self.data_path, path), 'r')
         mfr_raw = f['mfr'][:]
         max_trace_raw = f['max_trace'][:]
@@ -45,7 +45,7 @@ class AvaPretrainDataset(Dataset):
         mfr2 = mfr_raw
         max_trace1 = max_trace_raw
         max_trace2 = max_trace_raw
-        print(f"Time to load data: {round(time() - start, 4)}")
+        #print(f"Time to load data: {round(time() - start, 4)}")
         # if self.trace_transform:
         #     # Print to understand how long this takes:
         #     start = time()
@@ -57,8 +57,8 @@ class AvaPretrainDataset(Dataset):
                 start_transform = time()
                 max_trace1 = transform(max_trace1)
                 max_trace2 = transform(max_trace2)
-                print(f"Trace transform {transform.__class__.__name__} time: {round(time() - start_transform, 4)}")
-            print(f"Total Trace transform time: {round(time() - start, 4)}")
+                #print(f"Trace transform {transform.__class__.__name__} time: {round(time() - start_transform, 4)}")
+            #print(f"Total Trace transform time: {round(time() - start, 4)}")
         # if self.mfr_transform:
         #     start = time()
         #     mfr1 = self.mfr_transform(mfr1)
@@ -69,8 +69,8 @@ class AvaPretrainDataset(Dataset):
                 start_transform = time()
                 mfr1 = transform(mfr1)
                 mfr2 = transform(mfr2)
-                print(f"MFR transform {transform.__class__.__name__} time: {round(time() - start_transform, 4)}")
-            print(f"Total MFR transform time: {round(time() - start, 4)}")
+                #print(f"MFR transform {transform.__class__.__name__} time: {round(time() - start_transform, 4)}")
+            #print(f"Total MFR transform time: {round(time() - start, 4)}")
         
         mfr1 = torch.tensor(mfr1, dtype=torch.float32)
         mfr2 = torch.tensor(mfr2, dtype=torch.float32)
