@@ -123,7 +123,7 @@ if __name__ == "__main__":
         minmax=True,
         use_gaf=False,
         apply_colormap=False,
-        decimation_factor=12,
+        decimation_factor=8,
         interval_max_length = 10
     )
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     datasets = {}
     for dataset_type in dataset_types:
         datasets[dataset_type] = AvaPretrainDataset(
-            data_path="/staff/antoine/Projects/TFFK/fybr_toolbox/test_scripts/self_sup_np" if socket.gethostname() == "saturn.norsar.no" else "/tf/data",
+            data_path="/staff/antoine/Projects/TFFK/fybr_toolbox/test_scripts/self_sup_np_corr" if socket.gethostname() == "saturn.norsar.no" else "/tf/data",
             #data_path="/tf/data",
             dataset_type=dataset_type,
             mfr_transform=mfr_transforms,
@@ -149,15 +149,12 @@ if __name__ == "__main__":
         dataloaders[dataset_type] = DataLoader(datasets[dataset_type],
                                             batch_size=64,
                                             shuffle=True if dataset_type == "train" else False,
-                                            num_workers=4,
+                                            num_workers=3,
                                             drop_last = True,
                                             persistent_workers=True,
                                             collate_fn=collate_fn
                                             )   
         print(f"Number of {dataset_type} batches: {len(dataloaders[dataset_type])}")
-        
-        
-
 
 
     # Plot some samples from each DataLoader

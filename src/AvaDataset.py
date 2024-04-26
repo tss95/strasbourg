@@ -18,6 +18,7 @@ class AvaPretrainDataset(Dataset):
         self.seed = seed
         self.paths = os.listdir(data_path)
         self.paths = self.__split_paths()
+        self.min_size = None
 
     def __split_paths(self):
         train_paths, test_paths = train_test_split(self.paths, test_size=0.2, random_state=self.seed)
@@ -41,6 +42,8 @@ class AvaPretrainDataset(Dataset):
         not_nan_mask = ~np.isnan(mfr_raw).any(axis=(0))
         mfr_raw = mfr_raw[:, not_nan_mask]
         
+        if self.min_size is None or max_trace_raw.shape[0] < self.min_size:
+            self.min_size = max_trace_raw.shape[0]
         mfr1 = mfr_raw
         mfr2 = mfr_raw
         max_trace1 = max_trace_raw
